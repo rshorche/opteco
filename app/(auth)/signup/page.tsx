@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, FormEvent } from "react";
 import { getBrowserClient } from "../../../lib/supabase/browserClient";
 
 export default function SignupPage() {
@@ -9,7 +9,7 @@ export default function SignupPage() {
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [message, setMessage] = useState("");
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setStatus("loading");
     setMessage("");
