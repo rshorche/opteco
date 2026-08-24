@@ -22,7 +22,10 @@ export async function POST(req: NextRequest) {
 
   const client = getUserScopedClient(accessToken);
 
-  // شناسهٔ کاربر از خودِ JWT گرفته می‌شود، نه از بدنهٔ درخواست (جلوگیری از جعل)
+  // این تماس صرفاً یک بررسی زودهنگام Auth است (برای برگرداندن 401 تمیز به‌جای
+  // خطای عمومی‌تر از داخل RPC)؛ شناسهٔ کاربر دیگر به recordInitialEntry پاس
+  // داده نمی‌شود — خودِ RPC آن را مستقیماً از auth.uid() (یعنی از JWT) در
+  // سمت پایگاه‌داده می‌خواند، دقیقاً برای جلوگیری از جعل هویت توسط کلاینت.
   const { data: userData, error: userErr } = await client.auth.getUser();
   if (userErr || !userData?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -37,7 +40,6 @@ export async function POST(req: NextRequest) {
 
   try {
     const result = await recordInitialEntry(client, {
-      userId: userData.user.id,
       strategyDefinitionId,
       underlyingSymbol,
       entrySource,
