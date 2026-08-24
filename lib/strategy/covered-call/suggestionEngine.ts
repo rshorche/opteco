@@ -75,7 +75,7 @@ export async function runSuggestionEngine(
     }
   }
 
-  const rowsToInsert = [];
+  const rowsToInsert: Record<string, unknown>[] = [];
   for (const [tierCode, candidates] of Object.entries(allCandidatesByTier)) {
     const tierId = tiers?.find((t) => t.code === tierCode)?.id;
     const top = rankAndSelectTop(candidates, weights, params.max_suggestions_per_tier ?? 4);
