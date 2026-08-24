@@ -1,0 +1,17 @@
+{
+  "name": "opteco-covered-call-slice",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Vertical Slice اول Opteco: Suggestion Engine + Execution Registration + Strategy Lifecycle برای Covered Call (Next.js App Router + Supabase)",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "next": "^14.2.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "@types/node": "^20.14.0",
+    "@types/react": "^18.3.0"
+  }
+}
