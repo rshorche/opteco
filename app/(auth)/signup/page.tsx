@@ -14,21 +14,28 @@ export default function SignupPage() {
     setStatus("loading");
     setMessage("");
 
-    const supabase = getBrowserClient();
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    try {
+      const supabase = getBrowserClient();
+      const { data, error } = await supabase.auth.signUp({ email, password });
 
-    if (error) {
+      if (error) {
+        setStatus("error");
+        setMessage(error.message);
+        return;
+      }
+
+      setStatus("done");
+      setMessage(
+        data.user?.identities?.length === 0
+          ? "این ایمیل قبلاً ثبت شده است."
+          : "ثبت‌نام انجام شد. اگر تأیید ایمیل فعال باشد، ایمیل خود را بررسی کنید؛ در غیر این صورت اکنون می‌توانید وارد شوید."
+      );
+    } catch (err) {
+      // هر خطای غیرمنتظره (مثلاً تنظیمات ناقص Environment Variable) دیگر
+      // بی‌صدا نمی‌ماند و دکمه هم دیگر برای همیشه در حالت Loading گیر نمی‌کند.
       setStatus("error");
-      setMessage(error.message);
-      return;
+      setMessage(err instanceof Error ? err.message : "خطای غیرمنتظره رخ داد.");
     }
-
-    setStatus("done");
-    setMessage(
-      data.user?.identities?.length === 0
-        ? "این ایمیل قبلاً ثبت شده است."
-        : "ثبت‌نام انجام شد. اگر تأیید ایمیل فعال باشد، ایمیل خود را بررسی کنید؛ در غیر این صورت اکنون می‌توانید وارد شوید."
-    );
   }
 
   return (

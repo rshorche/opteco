@@ -16,32 +16,37 @@ export default function LoginPage() {
     setMessage("");
     setProfile(null);
 
-    const supabase = getBrowserClient();
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+    try {
+      const supabase = getBrowserClient();
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
 
-    if (authError) {
+      if (authError) {
+        setStatus("error");
+        setMessage(authError.message);
+        return;
+      }
+
+      // بررسی این‌که Trigger واقعاً ردیف public.users را ساخته و RLS اجازهٔ
+      // دیدن آن را به خودِ کاربر می‌دهد (این دقیقاً تست خواسته‌شدهٔ شماست)
+      const { data: userRow, error: userError } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", authData.user!.id)
+        .single();
+
+      if (userError) {
+        setStatus("error");
+        setMessage(`ورود موفق بود ولی خواندن پروفایل شکست خورد: ${userError.message}`);
+        return;
+      }
+
+      setStatus("done");
+      setMessage("ورود موفق. ردیف public.users با موفقیت خوانده شد (یعنی Trigger + RLS هر دو درست کار کرده‌اند).");
+      setProfile(userRow);
+    } catch (err) {
       setStatus("error");
-      setMessage(authError.message);
-      return;
+      setMessage(err instanceof Error ? err.message : "خطای غیرمنتظره رخ داد.");
     }
-
-    // بررسی این‌که Trigger واقعاً ردیف public.users را ساخته و RLS اجازهٔ
-    // دیدن آن را به خودِ کاربر می‌دهد (این دقیقاً تست خواسته‌شدهٔ شماست)
-    const { data: userRow, error: userError } = await supabase
-      .from("users")
-      .select("*")
-      .eq("id", authData.user!.id)
-      .single();
-
-    if (userError) {
-      setStatus("error");
-      setMessage(`ورود موفق بود ولی خواندن پروفایل شکست خورد: ${userError.message}`);
-      return;
-    }
-
-    setStatus("done");
-    setMessage("ورود موفق. ردیف public.users با موفقیت خوانده شد (یعنی Trigger + RLS هر دو درست کار کرده‌اند).");
-    setProfile(userRow);
   }
 
   return (
