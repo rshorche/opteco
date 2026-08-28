@@ -41,26 +41,32 @@ Deno.serve(async (req: Request) => {
 
   const startedAt = new Date();
 
-  // --- Guard سهمیهٔ روزانه ---
-  const { data: todaysCallCount, error: countError } = await service.rpc(
-    "fn_count_todays_option_api_calls"
+  // --- Guard سهمیهٔ روزانه: رزرو اتمیک، نه شمارش-و-بعد-تصمیم ---
+  // fn_try_reserve_option_api_call یک UPDATE شرطی اتمیک است (نه SELECT
+  // جدا + INSERT بعدی)؛ حتی اگر دو اجرا دقیقاً هم‌زمان این Route را صدا
+  // بزنند (مثلاً یک Retry هم‌زمان با یک اجرای برنامه‌ریزی‌شده)، Postgres
+  // این دو را روی همان ردیف سریال می‌کند و هرگز اجازهٔ عبور از سقف را
+  // نمی‌دهد — این تضمین در سطح Database است، نه در کد Application.
+  const { data: reserved, error: reserveError } = await service.rpc(
+    "fn_try_reserve_option_api_call",
+    { p_daily_limit: MARKET_DATA_SYNC_CONFIG.dailyApiRequestLimit }
   );
 
-  if (countError) {
+  if (reserveError) {
     await service.from("market_sync_runs").insert({
       started_at: startedAt.toISOString(),
       finished_at: new Date().toISOString(),
       status: "FAILED",
       http_status: null,
-      error_message: redactSecrets(`Daily guard query failed: ${countError.message}`),
+      error_message: redactSecrets(`Daily guard reservation failed: ${reserveError.message}`),
       contracts_fetched: 0,
     });
-    return new Response(JSON.stringify({ status: "failed", error: "Daily guard check failed" }), {
+    return new Response(JSON.stringify({ status: "failed", error: "Daily guard reservation failed" }), {
       status: 500,
     });
   }
 
-  if ((todaysCallCount ?? 0) >= MARKET_DATA_SYNC_CONFIG.dailyApiRequestLimit) {
+  if (!reserved) {
     await service.from("market_sync_runs").insert({
       started_at: startedAt.toISOString(),
       finished_at: new Date().toISOString(),
