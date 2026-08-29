@@ -72,25 +72,17 @@ $$;
 revoke execute on function public.fn_try_reserve_option_api_call(int) from public, anon, authenticated;
 
 -- ----------------------------------------------------------------------------
--- ۴. Vault — Secret احراز هویت pg_net→Edge Function
---    شما مقدار واقعی را جایگزین 'YOUR_RANDOM_SECRET_HERE' می‌کنید (باید
---    دقیقاً همان مقداری باشد که در Edge Function Secret با نام
---    MARKET_SYNC_INVOKE_SECRET تنظیم می‌کنید).
+-- ۴. Vault — قبلاً توسط شما مستقیماً انجام شده (تأیید شد: Secret با نام
+--    market_sync_invoke_secret در vault.secrets موجود است). این بخش دیگر
+--    اجرا نمی‌شود تا آن Secret موجود دست‌نخورده بماند.
 -- ----------------------------------------------------------------------------
-select vault.create_secret(
-    'YOUR_RANDOM_SECRET_HERE',
-    'market_sync_invoke_secret',
-    'Secret احراز هویت pg_net هنگام صدا زدن market-data-sync Edge Function'
-);
 
 -- ----------------------------------------------------------------------------
 -- ۵. Scheduler پویا — ارتقای آیندهٔ سهمیه فقط یک فراخوانی تابع است
---    شما PROJECT_REF واقعی را در مقدار پیش‌فرض p_edge_function_url
---    جایگزین می‌کنید.
 -- ----------------------------------------------------------------------------
 create or replace function public.fn_reschedule_market_data_sync(
     p_num_slots int default 9,
-    p_edge_function_url text default 'https://<PROJECT_REF>.supabase.co/functions/v1/market-data-sync'
+    p_edge_function_url text default 'https://flfafjrpdqlohndiecsz.supabase.co/functions/v1/market-data-sync'
 )
 returns void
 language plpgsql
