@@ -78,29 +78,33 @@ revoke execute on function public.fn_try_reserve_option_api_call(int) from publi
 -- ----------------------------------------------------------------------------
 
 -- ----------------------------------------------------------------------------
--- ۵. Scheduler پویا — ارتقای آیندهٔ سهمیه فقط یک فراخوانی تابع است
+-- ۵. Scheduler — گام ثابت + سقف توقف صریح (نه تقسیم خودکار کل بازه)
+--    با p_step_minutes=25 و توقف در 12:20 تهران، دقیقاً همین ۹ زمان تولید
+--    می‌شود: 09:00, 09:25, 09:50, 10:15, 10:40, 11:05, 11:30, 11:55, 12:20
 -- ----------------------------------------------------------------------------
 create or replace function public.fn_reschedule_market_data_sync(
-    p_num_slots int default 9,
+    p_step_minutes int default 25,
+    p_last_call_hour int default 12,
+    p_last_call_minute int default 20,
     p_edge_function_url text default 'https://flfafjrpdqlohndiecsz.supabase.co/functions/v1/market-data-sync'
 )
 returns void
 language plpgsql
 as $$
 declare
-    v_start_minutes  int := 5 * 60 + 30;  -- 05:30 UTC = 09:00 تهران
-    v_end_minutes    int := 9 * 60;       -- 09:00 UTC = 12:30 تهران
-    v_step           numeric;
-    v_slot           int;
-    v_minutes_of_day int;
-    v_job_name       text;
+    v_start_minutes      int := 5 * 60 + 30;  -- 05:30 UTC = 09:00 تهران
+    v_tehran_offset      int := 210;           -- UTC+3:30 (ثابت، بدون DST)
+    v_last_call_minutes  int;
+    v_minutes_of_day     int;
+    v_slot               int := 0;
+    v_job_name           text;
 begin
     perform cron.unschedule(jobname) from cron.job where jobname like 'market-sync-%';
 
-    v_step := (v_end_minutes - v_start_minutes)::numeric / greatest(p_num_slots - 1, 1);
+    v_last_call_minutes := (p_last_call_hour * 60 + p_last_call_minute) - v_tehran_offset;
+    v_minutes_of_day := v_start_minutes;
 
-    for v_slot in 0 .. p_num_slots - 1 loop
-        v_minutes_of_day := v_start_minutes + round(v_step * v_slot);
+    while v_minutes_of_day <= v_last_call_minutes loop
         v_job_name := format('market-sync-%s', lpad(v_slot::text, 2, '0'));
 
         perform cron.schedule(
@@ -117,12 +121,18 @@ begin
                 );
             $job$, p_edge_function_url)
         );
+
+        v_minutes_of_day := v_minutes_of_day + p_step_minutes;
+        v_slot := v_slot + 1;
     end loop;
 end;
 $$;
 
--- اجرای اولیه با ۹ Slot (طبق سهمیهٔ فعلی ۱۰ درخواستی)
-select public.fn_reschedule_market_data_sync(9);
+-- اجرای اولیه: دقیقاً همان ۹ زمان درخواستی شما
+select public.fn_reschedule_market_data_sync(25, 12, 20);
 
--- روز ارتقا به پلن ۱۰۰۰ درخواستی، فقط همین یک خط لازم است، هیچ SQL دیگری:
--- select public.fn_reschedule_market_data_sync(<عدد جدید Slot>);
+-- در آینده، بعد از ارتقای API، فقط با تغییر گام/سقف توقف (نه بازطراحی):
+-- select public.fn_reschedule_market_data_sync(<گام جدید>, <ساعت پایان>, <دقیقه پایان>);
+-- (برای فرکانس بسیار بالا مثل هر ۱ دقیقه، این الگوی "N Job مجزا" احتمالاً
+--  باید با یک Cron Expression تکرارشونده جایگزین شود، نه صدها Job جدا —
+--  آن یک تصمیم طراحی جداگانه در زمان ارتقا خواهد بود.)
